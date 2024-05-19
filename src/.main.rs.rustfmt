@@ -1,0 +1,346 @@
+use reqwest;
+use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
+use serde::{Deserialize, Serialize};
+use std::env;
+use base64;
+use dotenv::dotenv;
+mod token;
+use token::authenticate_with_spotify;
+use rspotify::{
+  oauth2::{SpotifyOAuth, TokenInfo},
+  util::{process_token, request_token},
+};
+
+const SCOPES: [&str; 14] = [
+  "playlist-read-collaborative",
+  "playlist-read-private",
+  "playlist-modify-private",
+  "playlist-modify-public",
+  "user-follow-read",
+  "user-follow-modify",
+  "user-library-modify",
+  "user-library-read",
+  "user-modify-playback-state",
+  "user-read-currently-playing",
+  "user-read-playback-state",
+  "user-read-playback-position",
+  "user-read-private",
+  "user-read-recently-played",
+];
+
+#[tokio::main]
+async fn main() {
+    dotenv().ok();
+    let client = reqwest::Client::new();
+
+    let token = authenticate_with_spotify().await.expect("Failed to authenticate with Spotify");
+    println!("Authenticated with Spotify successfully. Token: {}", token);
+
+
+    // O auth token
+    let client_id = std::env::var("SPOTIFY_CLIENT_ID")
+        .expect("please set spotify_client_id");
+    let client_secret = std::env::var("SPOTIFY_CLIENT_SECRET")
+        .expect("please set spotify_client_secret");
+
+    let mut oauth = SpotifyOAuth::default()
+        .client_id()
+        .client_secret(&client_secret)
+        .redirect_uri("http://localhost:8888/callback")
+        // .cache_path(config_paths.token_cache_path)
+        .scope(&SCOPES.join(" "))
+        .build();
+
+    let config_port = "8888";
+
+    match get_token_auto(&mut oauth, config_port).await {
+    Some(token_info) => {
+      let (sync_io_tx, sync_io_rx) = std::sync::mpsc::channel::<IoEvent>();
+
+      let (spotify, token_expiry) = get_spotify(token_info);
+
+      // Initialise app state
+      let app = Arc::new(Mutex::new(App::new(
+        sync_io_tx,
+        user_config.clone(),
+        token_expiry,
+      )));
+
+      // Work with the cli (not really async)
+      if let Some(cmd) = matches.subcommand_name() {
+        // Save, because we checked if the subcommand is present at runtime
+        let m = matches.subcommand_matches(cmd).unwrap();
+        let network = Network::new(oauth, spotify, client_config, &app);
+        println!(
+          "{}",
+          cli::handle_matches(m, cmd.to_string(), network, user_config).await?
+        );
+      // Launch the UI (async)
+      } else {
+        let cloned_app = Arc::clone(&app);
+        std::thread::spawn(move || {
+          let mut network = Network::new(oauth, spotify, client_config, &app);
+          start_tokio(sync_io_rx, &mut network);
+        });
+        // The UI must run in the "main" thread
+        // start_ui(user_config, &cloned_app).await?;
+        println!("UI started");
+      }
+    }
+    None => println!("\nSpotify auth failed"),
+  }
+
+  Ok(())
+}
+       
+
+
+ let search_query = "Never Gonna Give You Up";
+ let track_url = format!(
+   "https://api.spotify.com/v1/search?q={query}&type=track",
+   query = search_query
+ );
+
+ let track_response = client
+     .get(&track_url)
+     .header(AUTHORIZATION, format!("Bearer {token}", token = token))
+     .header(CONTENT_TYPE, "application/json")
+     .header(ACCEPT, "application/json")
+     .send()
+     .await
+     .unwrap();  
+
+ // Now you can access the first track like this
+ if track_response.status().is_success() {
+     let body = track_response.text().await.unwrap();
+     let spotify_response: SpotifyResponse = serde_json::from_str(&body).unwrap();
+
+     if let Some(first_track) = spotify_response.tracks.items.first() {
+         println!("First track: {}", first_track.name);
+         println!("{:?}", first_track);    
+     } else {
+         println!("No tracks found");
+     }
+ } else {
+     println!("Failed to get tracks. Status: {}", track_response.status());
+ }
+
+ let track_uri = "spotify:track:11dFghVXANMlKmJXsNCbNl";
+
+
+ // select spotifyd device and play the track
+ let devices_url = "https://api.spotify.com/v1/me/player/devices";
+
+ let devices_response = client
+     .get(devices_url)
+     .header(AUTHORIZATION, format!("Bearer {token}", token = token))
+     .header(CONTENT_TYPE, "application/json")
+     .header(ACCEPT, "application/json")
+     .send()
+     .await
+     .unwrap();
+
+ if devices_response.status().is_success() {
+     let body = devices_response.text().await.unwrap();
+     println!("{}", body);
+ } else {
+     println!("Failed to get devices. Status: {}", devices_response.status());
+ }
+
+ // let play_url = format!(
+ //    "https://api.spotify.com/v1/me/player/play?device_id={device_id}",
+ //    device_id = device_id
+ //    );
+ //    let play_response = client
+ //    .put(&play_url)
+ //    .header(AUTHORIZATION, format!("Bearer {token}", token = token))
+ //    .header(CONTENT_TYPE, "application/json")
+ //    .header(ACCEPT, "application/json")
+ //    .send()
+ //    .await
+ //    .unwrap();
+ //    if play_response.status().is_success() {
+ //    println!("Playing track");
+ //    } else {
+ //    println!("Failed to play track. Status: {}", play_response.status());
+ //      }
+
+}
+
+
+// async fn main() {
+//     dotenv().ok();
+//     
+//     let mut player = Player::new();
+//     player.update();
+//     player.playing = true;
+//     player.song = "Song 1".to_string();
+//     player.update();
+//     player.queue.add_song(player.song);
+//     player.queue.add_song("Song 2".to_string());
+//     player.queue.add_song("Song 3".to_string());
+//     player.queue.add_song("Song 4".to_string());
+//     player.queue.add_song("Song 5".to_string());
+//
+//     for song in player.queue.get_songs() {
+//         println!("{}", song);
+//     }
+//
+//     player.queue.remove_song("Song 3".to_string());
+//
+//     for song in player.queue.get_songs() {
+//         println!("{}", song);
+//     }
+//
+//     // request Spotify API
+//     let args: Vec<String> = env::args().collect();
+//     let search_query = &args[1];
+//     // let token = &args[2];
+//     let url = format!("https://api.spotify.com/v1/search?q={query}&type=track",
+//                       query = search_query
+//     );
+//
+//     // authenticate with spotify api
+//     let client_id = env::var("SPOTIFY_CLIENT_ID") //"92b25a3ba0d6411ca8b60250189ed776";
+//         .expect("please set spotify_client_id");
+//     let client_secret = env::var("SPOTIFY_CLIENT_SECRET") //"b02916ac933b4ffc975e9a506a380a3d";
+//         .expect("please set spotify_client_secret");
+//     let auth = base64::encode(format!("{id}:{secret}",
+//                                       id = client_id,
+//                                       secret = client_secret
+//     ));
+//     let auth_url = "https://accounts.spotify.com/api/token";
+//     let auth_response = reqwest::Client::new()
+//         .post(auth_url)
+//         .header(AUTHORIZATION, format!("Basic {auth}", auth = auth))
+//         .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+//         .body("grant_type=client_credentials")
+//         .send()
+//         .await
+//         .unwrap();
+//
+//     let auth_body = auth_response.text().await.unwrap();
+//     let auth_token: serde_json::Value = serde_json::from_str(&auth_body).unwrap();
+//     let token = auth_token["access_token"].as_str().unwrap();
+//     println!("Token: {}", token);
+//
+//
+//     let client = reqwest::Client::new();
+//     let response = client
+//         .get(&url)
+//         .header(AUTHORIZATION, format!("Bearer {token}", token = token))
+//         .header(CONTENT_TYPE, "application/json")
+//         .header(ACCEPT, "application/json")
+//         .send()
+//         .await
+//         .unwrap();
+//
+//     match response.status(){
+//         reqwest::StatusCode::OK => {
+//             println!("Success");
+//             let body = response.text().await.unwrap();
+//             // println!("{}", body);
+//
+//             // Deserialize the entire response into a SpotifyResponse
+//             let spotify_response: SpotifyResponse = serde_json::from_str(&body).unwrap();
+//
+//             // Now you can access the first track like this
+//             if let Some(first_track) = spotify_response.tracks.items.first() {
+//                 println!("First track: {}", first_track.name);
+//                 // print all information about the first track
+//                 println!("{:?}", spotify_response.tracks.items.first());
+//             } else {
+//                 println!("No tracks found");
+//             }
+//         }
+//         
+//         reqwest::StatusCode::UNAUTHORIZED => {
+//             println!("Unauthorized");
+//         }
+//
+//         _ => {
+//             println!("Unexpected status code: {:?}", response.status());
+//         }
+//     }
+//
+//     // request available devices
+//     let devices_url = "https://api.spotify.com/v1/me/player/devices";
+//     let devices_response = client
+//         .get(devices_url)
+//         .header(AUTHORIZATION, format!("Bearer {token}", token = token))
+//         .header(CONTENT_TYPE, "application/json")
+//         .header(ACCEPT, "application/json")
+//         .send()
+//         .await
+//         .unwrap();
+// }
+//
+
+
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Track {
+    name: String,
+    href: String,
+    popularity: u32,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SpotifyResponse {
+    tracks: Tracks,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Tracks {
+    items: Vec<Track>,
+}
+
+struct Player {
+    playing: bool,
+    song: String,
+    queue: queue::Queue,
+}
+
+impl Player {
+    fn new() -> Self {
+        Player {
+            playing: false,
+            song: String::new(),
+            queue: queue::Queue::new(),
+        }
+    }
+
+    fn update(&self) {
+        if self.playing {
+            println!("Playing: {}", self.song);
+        } else {
+            println!("Paused: {}", self.song);
+        }
+    }
+}
+
+pub mod queue {
+    pub struct Queue {
+        songs: Vec<String>,
+    }
+
+    impl Queue {
+        pub fn new() -> Queue {
+            Queue { songs: Vec::new() }
+        }
+
+        pub fn add_song(&mut self, song: String) {
+            self.songs.push(song);
+        }
+
+        pub fn remove_song(&mut self, song: String) {
+            let index = self.songs.iter().position(|x| x == song.as_str()).unwrap();
+            self.songs.remove(index);
+        }
+
+        pub fn get_songs(&self) -> Vec<String> {
+            self.songs.clone()
+        }
+    }
+}
+
