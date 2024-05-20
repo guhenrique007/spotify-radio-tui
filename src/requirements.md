@@ -142,3 +142,5 @@ Example output:
     Jan 18 14:13:11 rockpro64 spotifyd[8963]: Using Alsa sink with format: S16
 
 After that you can install Spotify console client. If you see any errors from client then you will need to click "d" and select spotifyd as output device.
+
+Source: https://www.stableit.blog/2023/01/spotifyd-installation-ubuntu-linux-2204.html
