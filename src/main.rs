@@ -1,15 +1,11 @@
-// use reqwest;
-// use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
-use serde::Deserialize;
-use std::env;
-// use base64;
-// use chrono::Duration;
 use dotenv::dotenv;
 use rspotify::{
     model::{AdditionalType, Country, Device, EpisodeId, Market, Offset, TrackId},
     prelude::*,
     AuthCodeSpotify, Config, Credentials, OAuth,
 };
+use serde::Deserialize;
+use std::env;
 
 #[derive(Deserialize)]
 pub struct DevicePayload {
@@ -44,7 +40,7 @@ async fn get_device(spotify: &AuthCodeSpotify) -> Result<String, &'static str> {
     println!("Getting available devices");
     let devices = spotify.device().await;
 
-    println!("Response: {devices:?}");
+    // println!("Response: {devices:?}");
 
     if let Ok(ref device_list) = devices {
         if device_list.is_empty() {
@@ -52,17 +48,22 @@ async fn get_device(spotify: &AuthCodeSpotify) -> Result<String, &'static str> {
             return Err("Warning: No devices found");
         }
 
-        println!("Response 2: {:?}", device_list);
+        println!("Device list: {:?}", device_list);
 
-        // if let Some(second_device) = device_list.get(1) {
-        //     println!("Second device: {:?}", second_device);
-        //     println!("Second device name: {:?}", second_device.name);
-        //     println!("Second device id: {:?}", second_device.id);
-        //     return Ok(second_device.clone().id);
-        // }
+        /* just for debug other device but spotifyd
+          if let Some(second_device) = device_list.get(1) {
+             println!("Second device: {:?}", second_device);
+             println!("Second device name: {:?}", second_device.name);
+             println!("Second device id: {:?}", second_device.id);
+             if let Some(id) = extract_id(second_device.id.clone()) {
+                 println!("second ID: {}", id);
+
+                 return Ok(id);
+             }
+          }
+        */
 
         if let Some(first_device) = device_list.first() {
-            println!("First device: {:?}", first_device);
             println!("First device name: {:?}", first_device.name);
             println!("First device id: {:?}", first_device.id);
 
@@ -74,11 +75,16 @@ async fn get_device(spotify: &AuthCodeSpotify) -> Result<String, &'static str> {
                 }
 
                 Err("No ID found")
-
-                // Ok(first_device.clone().id)
             } else {
-                println!("Warning: No Spotifyd devices found");
-                Err("Warning: No Spotifyd devices found")
+                // return the first device but spotifyd
+                if let Some(id) = extract_id(first_device.id.clone()) {
+                    println!("ID: {}", id);
+
+                    Ok(id)
+                } else {
+                    println!("Warning: No Spotifyd devices found");
+                    Err("Warning: No Spotifyd devices found")
+                }
             }
         } else {
             println!("No devices found");
@@ -133,26 +139,26 @@ async fn main() {
     println!("Device ID: {:?}", device_id);
 
     let uris = [
-        PlayableId::Track(TrackId::from_uri("spotify:track:4iV5W9uYEdYUVa79Axb7Rh").unwrap()),
+        // PlayableId::Track(TrackId::from_uri("spotify:track:4iV5W9uYEdYUVa79Axb7Rh").unwrap()),
         PlayableId::Track(TrackId::from_uri("spotify:track:2DzSjFQKetFhkFCuDWhioi").unwrap()),
         PlayableId::Episode(EpisodeId::from_id("0lbiy3LKzIY2fnyjioC11p").unwrap()),
     ];
 
-    // spotify
-    //     .start_uris_playback(
-    //         uris.iter().map(PlayableId::as_ref),
-    //         Some(&device_id),
-    //         Some(Offset::Position(chrono::Duration::zero())),
-    //         None,
-    //     )
-    //     .await
-    //     .unwrap();
-    //
-    // let playback = spotify.current_playback(None, None::<&[_]>).await;
-    //
-    // println!("Response: {playback:?}");
+    spotify
+        .start_uris_playback(
+            uris.iter().map(PlayableId::as_ref),
+            Some(&device_id),
+            Some(Offset::Position(chrono::Duration::zero())),
+            None,
+        )
+        .await
+        .unwrap();
 
-    // let resume = spotify.resume_playback(None, None).await;
-    //
-    // println!("Response: {resume:?}");
+    let playback = spotify.current_playback(None, None::<&[_]>).await;
+
+    println!("Response: {playback:?}");
+
+    let resume = spotify.resume_playback(None, None).await;
+
+    println!("Response: {resume:?}");
 }
