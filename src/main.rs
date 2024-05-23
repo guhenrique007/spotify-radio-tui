@@ -3,7 +3,7 @@ mod playback;
 
 use device::get_device_id;
 use dotenv::dotenv;
-use playback::start_playback_from_uris;
+use playback::{pause_playback, resume_playback, start_playback_from_uris};
 use rspotify::{
     model::{AdditionalType, Country, Device, EpisodeId, Market, TrackId},
     prelude::*,
@@ -79,23 +79,14 @@ async fn main() {
         PlayableId::Episode(EpisodeId::from_id("0lbiy3LKzIY2fnyjioC11p").unwrap()),
     ];
 
-    start_playback_from_uris(&spotify, uris.iter().map(PlayableId::as_ref), device_id).await;
+    start_playback_from_uris(
+        &spotify,
+        uris.iter().map(PlayableId::as_ref),
+        device_id.clone(),
+    )
+    .await;
 
-    // spotify
-    //     .start_uris_playback(
-    //         uris.iter().map(PlayableId::as_ref),
-    //         Some(&device_id),
-    //         Some(Offset::Position(chrono::Duration::zero())),
-    //         None,
-    //     )
-    //     .await
-    //     .unwrap();
-    //
-    // let playback = spotify.current_playback(None, None::<&[_]>).await;
-    //
-    // println!("Response: {playback:?}");
-    //
-    // let resume = spotify.resume_playback(None, None).await;
-    //
-    // println!("Response: {resume:?}");
+    //pause playback after 5 seconds
+    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    pause_playback(&spotify, device_id.clone()).await;
 }

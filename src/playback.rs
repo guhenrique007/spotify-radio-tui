@@ -23,3 +23,15 @@ pub async fn start_playback_from_uris<'a>(
 
     println!("Response: {resume:?}");
 }
+
+pub async fn pause_playback(spotify: &AuthCodeSpotify, device_id: String) {
+    let pause = spotify.pause_playback(Some(&device_id)).await;
+
+    println!("Response: {pause:?}");
+}
+
+pub async fn resume_playback(spotify: &AuthCodeSpotify, device_id: String) {
+    let resume = spotify.resume_playback(Some(&device_id), None).await;
+
+    println!("Response: {resume:?}");
+}
