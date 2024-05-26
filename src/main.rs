@@ -1,5 +1,6 @@
 mod device;
 mod playback;
+mod tui;
 
 use device::get_device_id;
 use dotenv::dotenv;
@@ -11,6 +12,7 @@ use rspotify::{
 };
 use serde::Deserialize;
 use std::env;
+use tui::init_ui;
 
 #[derive(Deserialize)]
 pub struct DevicePayload {
@@ -73,6 +75,13 @@ async fn main() {
 
     println!("Device ID: {:?}", device_id);
 
+    init_ui();
+
+    /*
+    *
+    * Uncomment this block to test the playback functions
+    *
+    *
     let uris = [
         // PlayableId::Track(TrackId::from_uri("spotify:track:4iV5W9uYEdYUVa79Axb7Rh").unwrap()),
         PlayableId::Track(TrackId::from_uri("spotify:track:2DzSjFQKetFhkFCuDWhioi").unwrap()),
@@ -89,4 +98,8 @@ async fn main() {
     //pause playback after 5 seconds
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     pause_playback(&spotify, device_id.clone()).await;
+
+    */
+
+    // call tui function
 }
